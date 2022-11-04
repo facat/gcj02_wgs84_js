@@ -433,7 +433,6 @@ function Gcj2Wgs_AnalyticDiff(gcj02lon, gcj02lat) {
             // Detail.Lng = Detail.Lng- flng;
             // Detail.Lat = Detail.Lat - flat;
             var LngLat=Gcj2Wgs_AnalyticDiff(Detail.Lng,Detail.Lat)
-            [Detail.Lng,Detail.Lat]=
             Detail.Lng=LngLat[0]
             Detail.Lat=LngLat[1]
             // Detail.Lng = Detail.Lng- flng;
