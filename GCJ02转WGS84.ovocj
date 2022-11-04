@@ -1,0 +1,475 @@
+<OvObjConvPlugin>
+    <name>GCJ02转WGS84</name>
+    <mode>0</mode>
+    <type>
+        <ovkml>
+            <enabled>1</enabled>
+            <!--可根据需求自定义导出文件后缀名-->
+            <ext>kml</ext>
+        </ovkml>
+        <ovkmz>
+            <enabled>1</enabled>
+            <ext>kmz</ext>
+        </ovkmz>
+        <txt>
+            <enabled>1</enabled>
+            <ext>txt</ext>
+        </txt>
+        <csv>
+            <enabled>1</enabled>
+            <ext>csv</ext>
+        </csv>
+    </type>
+    <param>0</param>
+</OvObjConvPlugin>
+
+<script type="text/javascript">
+
+
+/////////////////////////////////////
+
+/**
+ *  \brief Angle unit transform, radian to degree
+ *
+ *  \param [in] rad: angle in radians
+ *  \return Returns angle in degrees
+ *  \time 15:21:01 2020/06/12
+ */
+ function Rad2Deg(rad) {
+  return rad * kRAD2DEG;
+}
+
+/**
+ *  \brief Get geodetic offset used by GCJ-02
+ *
+ *  \param [in] wgs84lon: longitude in WGS84 coordinate system [unit:degree]
+ *  \param [in] wgs84lat: latitude in WGS84 coordinate system [unit:degree]
+ *  \return Returns a pair of geodetic offset used by GCJ-02
+ *  \time 15:28:33 2020/06/12
+ */
+function GetGeodeticOffset(wgs84lon, wgs84lat) {
+  //get geodetic offset relative to 'center china'
+  var lon0 = wgs84lon - 105.0;
+  var lat0 = wgs84lat - 35.0;
+
+  //generate an pair offset roughly in meters
+  var lon1 =
+    300.0 +
+    lon0 +
+    2.0 * lat0 +
+    0.1 * lon0 * lon0 +
+    0.1 * lon0 * lat0 +
+    0.1 * Math.sqrt(Math.abs(lon0));
+  lon1 =
+    lon1 +
+    ((20.0 * Math.sin(6.0 * lon0 * PI) + 20.0 * Math.sin(2.0 * lon0 * PI)) *
+      2.0) /
+      3.0;
+  lon1 =
+    lon1 +
+    ((20.0 * Math.sin(lon0 * PI) + 40.0 * Math.sin((lon0 / 3.0) * PI)) * 2.0) /
+      3.0;
+  lon1 =
+    lon1 +
+    ((150.0 * Math.sin((lon0 / 12.0) * PI) +
+      300.0 * Math.sin((lon0 * PI) / 30.0)) *
+      2.0) /
+      3.0;
+var lat1 =
+    -100.0 +
+    2.0 * lon0 +
+    3.0 * lat0 +
+    0.2 * lat0 * lat0 +
+    0.1 * lon0 * lat0 +
+    0.2 * Math.sqrt(Math.abs(lon0));
+  lat1 =
+    lat1 +
+    ((20.0 * Math.sin(6.0 * lon0 * PI) + 20.0 * Math.sin(2.0 * lon0 * PI)) *
+      2.0) /
+      3.0;
+  lat1 =
+    lat1 +
+    ((20.0 * Math.sin(lat0 * PI) + 40.0 * Math.sin((lat0 / 3.0) * PI)) * 2.0) /
+      3.0;
+  lat1 =
+    lat1 +
+    ((160.0 * Math.sin((lat0 / 12.0) * PI) +
+      320.0 * Math.sin((lat0 * PI) / 30.0)) *
+      2.0) /
+      3.0;
+
+  //latitude in radian
+  var B = Deg2Rad(wgs84lat);
+  var sinB = Math.sin(B),
+    cosB = Math.cos(B);
+  var W = Math.sqrt(1 - kKRASOVSKY_ECCSQ * sinB * sinB);
+  var N = kKRASOVSKY_A / W;
+
+  //geodetic offset used by GCJ-02
+  var lon2 = Rad2Deg(lon1 / (N * cosB));
+  var lat2 = Rad2Deg((lat1 * W * W) / (N * (1 - kKRASOVSKY_ECCSQ)));
+  return [lon2, lat2];
+}
+
+/**
+ *  \brief Covert geodetic coordinate in WGS84 coordinate system to geodetic coordinate
+ *         in GCJ-02 coordinate system
+ *
+ *  \param [in] wgs84lon: longitude in WGS84 coordinate system [unit:degree]
+ *  \param [in] wgs84lat: latitude in WGS84 coordinate system [unit:degree]
+ *  \return Returns geodetic coordinate in GCJ-02 coordinate system
+ *  \time 15:47:38 2020/06/12
+ */
+function Wgs2Gcj(wgs84lon, wgs84lat) {
+  var dlon, dlat;
+  var dlondlat=GetGeodeticOffset(wgs84lon, wgs84lat);
+  dlon=dlondlat[0]
+  dlat=dlondlat[1]
+  var gcj02lon = wgs84lon + dlon;
+  var gcj02lat = wgs84lat + dlat;
+  return [gcj02lon, gcj02lat];
+}
+
+//Beijing54 Geodetic coordinate system (Krasovsky reference ellipsoid)
+var kKRASOVSKY_A = 6378245.0; // equatorial radius [unit: meter]
+var kKRASOVSKY_B = 6356863.0187730473; // polar radius
+var kKRASOVSKY_ECCSQ = 6.6934216229659332e-3; // first eccentricity squared
+var kKRASOVSKY_ECC2SQ = 6.7385254146834811e-3; // second eccentricity squared
+var PI = 3.14159265358979323846; //π
+
+var kDEG2RAD = PI / 180.0;
+var kRAD2DEG = 180.0 / PI;
+
+/**
+ *  \brief Angle unit transform, degree to radian
+ *
+ *  \param [in] deg: angle in degrees
+ *  \return Returns angle in radians
+ *  \time 15:21:22 2020/06/12
+ */
+function Deg2Rad(deg) {
+  return deg * kDEG2RAD;
+}
+
+/**
+ *  \brief Covert geodetic coordinate in GCJ-02 coordinate system to geodetic coordinate
+ *         in WGS84 coordinate system
+ *
+ *  \param [in] gcj02lon: longitude in GCJ-02 coordinate system [unit:degree]
+ *  \param [in] gcj02lat: latitude in GCJ-02 coordinate system [unit:degree]
+ *  \return Returns geodetic coordinate in WGS84 coordinate system
+ *  \remark The encryption formula is known,and use the analytical derivation method to
+ *			solve the problem with high precision.
+ *	\detail Assuming the encryption formula is
+ *
+ *			gcj02lon = Wgs2Gcj(wgs84lon, wgs84lat)
+ *			gcj02lat = Wgs2Gcj(wgs84lon, wgs84lat)
+ *
+ *	 In the rectification process, (wgs84lon, wgs84lat) are unknown items. Obviously,
+ *   this is a system of nonlinear equations.
+ *
+ *   The linear formed error functions of forward intersection come from
+ *   consideration of a Taylor series expansion.
+ *           V = AX - b
+ *    here:
+ *    V: The residuals of the observed values
+ *    A: The jacobian matrix
+ *    X: The modification of the unknown items
+ *    b: The constant terms of the error functions
+ *
+ *    Then the error functions written in vector form are:
+ *    | V_lon | = | dlongcj_dlonwgs  dlongcj_dlatwgs |  | d_lonwgs | - | l_lon |
+ *    | V_lat | = | dlatgcj_dlonwgs  dlatgcj_dlatwgs |  | d_latwgs | - | l_lat |
+ *    here:
+ *    l_lon = longcj - longcj'                 // the modification of longcj
+ *    l_lat = latgcj - latgcj'                 // the modification of latgcj
+ *    longcj : the observed longitude in GCJ-02
+ *    latgcj : the observed latitude in GCJ-02
+ *    longcj' = Wgs2Gcj(wgs84lon',wgs84lat')    // estimated longitude in GCJ-02
+ *    latgcj' = Wgs2Gcj(wgs84lon',wgs84lat')    // estimated latitude in GCJ-02
+ *    wgs84lon' : estimated longitude in WGS84
+ *    wgs84lat' : estimated latitude in WGS84
+ *    d_lonwgs : unknown items
+ *    d_latwgs : unknown items
+ *    wgs84lon = wgs84lon' + d_lonwgs                           // update
+ *    wgs84lat = wgs84lat' + d_latwgs
+ *
+ *	  let V = [V_lon V_lat]T = 0, then
+ *	  d_latwgs = (l_lon * dlatgcj_dlonwgs - l_lat * dlongcj_dlonwgs) /
+ *			(dlongcj_dlatwgs * dlatgcj_dlonwgs - dlatgcj_dlatwgs * dlongcj_dlonwgs)
+ *	  d_lonwgs = (l_lon - dlongcj_dlatwgs * d_latwgs) / dlongcj_dlonwgs
+ *
+ *    This iterative procedure is repeated until X= [d_lonwgs d_latwgs]T are
+ *    sufficiently small.
+ *  \time 01:54:46 2020/06/13
+ */
+function Gcj2Wgs_AnalyticDiff(gcj02lon, gcj02lat) {
+  var wgs84lon = gcj02lon;
+  var wgs84lat = gcj02lat;
+  var nIterCount = 0;
+  while (++nIterCount < 1000) {
+    //get geodetic offset relative to 'center china'
+    var lon0 = wgs84lon - 105.0;
+    var lat0 = wgs84lat - 35.0;
+
+    //generate an pair offset roughly in meters
+    var lon1 =
+      300.0 +
+      lon0 +
+      2.0 * lat0 +
+      0.1 * lon0 * lon0 +
+      0.1 * lon0 * lat0 +
+      0.1 * Math.sqrt(Math.abs(lon0));
+    lon1 =
+      lon1 +
+      ((20.0 * Math.sin(6.0 * lon0 * PI) + 20.0 * Math.sin(2.0 * lon0 * PI)) *
+        2.0) /
+        3.0;
+    lon1 =
+      lon1 +
+      ((20.0 * Math.sin(lon0 * PI) + 40.0 * Math.sin((lon0 / 3.0) * PI)) *
+        2.0) /
+        3.0;
+    lon1 =
+      lon1 +
+      ((150.0 * Math.sin((lon0 / 12.0) * PI) +
+        300.0 * Math.sin((lon0 * PI) / 30.0)) *
+        2.0) /
+        3.0;
+    var lat1 =
+      -100.0 +
+      2.0 * lon0 +
+      3.0 * lat0 +
+      0.2 * lat0 * lat0 +
+      0.1 * lon0 * lat0 +
+      0.2 * Math.sqrt(Math.abs(lon0));
+    lat1 =
+      lat1 +
+      ((20.0 * Math.sin(6.0 * lon0 * PI) + 20.0 * Math.sin(2.0 * lon0 * PI)) *
+        2.0) /
+        3.0;
+    lat1 =
+      lat1 +
+      ((20.0 * Math.sin(lat0 * PI) + 40.0 * Math.sin((lat0 / 3.0) * PI)) *
+        2.0) /
+        3.0;
+    lat1 =
+      lat1 +
+      ((160.0 * Math.sin((lat0 / 12.0) * PI) +
+        320.0 * Math.sin((lat0 * PI) / 30.0)) *
+        2.0) /
+        3.0;
+
+    var g_lon0 = 0;
+    if (lon0 > 0) {
+      g_lon0 = 0.05 / Math.sqrt(lon0);
+    } else {
+      if (lon0 < 0) {
+        g_lon0 = -0.05 / Math.sqrt(-lon0);
+      } else {
+        g_lon0 = 0;
+      }
+    }
+    var PIlon0 = PI * lon0,
+      PIlat0 = PI * lat0;
+    var dlon1_dlonwgs =
+      1 +
+      0.2 * lon0 +
+      0.1 * lat0 +
+      g_lon0 +
+      ((120 * PI * Math.cos(6 * PIlon0) +
+        40 * PI * Math.cos(2 * PIlon0) +
+        (20 * PI * Math.cos(PIlon0) +
+          ((40 * PI) / 3.0) * Math.cos(PIlon0 / 3.0)) +
+        (12.5 * PI * Math.cos(PIlon0 / 12.0) +
+          10 * PI * Math.cos(PIlon0 / 30.0))) *
+        2.0) /
+        3.0;
+    var dlon1_dlatwgs = 2 + 0.1 * lon0;
+
+    var dlat1_dlonwgs =
+      2 +
+      0.1 * lat0 +
+      2 * g_lon0 +
+      ((120 * PI * Math.cos(6 * PIlon0) + 40 * PI * Math.cos(2 * PIlon0)) *
+        2.0) /
+        3.0;
+    var dlat1_dlatwgs =
+      3 +
+      0.4 * lat0 +
+      0.1 * lon0 +
+      ((20 * PI * Math.cos(PIlat0) +
+        ((40.0 * PI) / 3.0) * Math.cos(PIlat0 / 3.0) +
+        (((40 * PI) / 3.0) * Math.cos(PIlat0 / 12.0) +
+          ((32.0 * PI) / 3.0) * Math.cos(PIlat0 / 30.0))) *
+        2.0) /
+        3.0;
+
+    //latitude in radian
+    var B = Deg2Rad(wgs84lat);
+    var sinB = Math.sin(B),
+      cosB = Math.cos(B);
+    var WSQ = 1 - kKRASOVSKY_ECCSQ * sinB * sinB;
+    var W = Math.sqrt(WSQ);
+    var N = kKRASOVSKY_A / W;
+
+    var dW_dlatwgs = (-PI * kKRASOVSKY_ECCSQ * sinB * cosB) / (180.0 * W);
+    var dN_dlatwgs = (-kKRASOVSKY_A * dW_dlatwgs) / WSQ;
+
+    var PIxNxCosB = PI * N * cosB;
+    var dlongcj_dlonwgs = 1.0 + (180.0 * dlon1_dlonwgs) / PIxNxCosB;
+    var dlongcj_dlatwgs =
+      (180 * dlon1_dlatwgs) / PIxNxCosB -
+      (180 * lon1 * PI * (dN_dlatwgs * cosB - (PI * N * sinB) / 180.0)) /
+        (PIxNxCosB * PIxNxCosB);
+
+    var PIxNxSubECCSQ = PI * N * (1 - kKRASOVSKY_ECCSQ);
+    var dlatgcj_dlonwgs = (180 * WSQ * dlat1_dlonwgs) / PIxNxSubECCSQ;
+    var dlatgcj_dlatwgs =
+      1.0 +
+      (180 *
+        (N * (dlat1_dlatwgs * WSQ + 2.0 * lat1 * W * dW_dlatwgs) -
+          lat1 * WSQ * dN_dlatwgs)) /
+        (N * PIxNxSubECCSQ);
+    var gcj02lonEst, gcj02latEst;
+    var gcj02lonEstgcj02latEst= Wgs2Gcj(wgs84lon, wgs84lat);
+    gcj02lonEst=gcj02lonEstgcj02latEst[0]
+    gcj02latEst=gcj02lonEstgcj02latEst[1]
+    var l_lon = gcj02lon - gcj02lonEst;
+    var l_lat = gcj02lat - gcj02latEst;
+
+    var d_latwgs =
+      (l_lon * dlatgcj_dlonwgs - l_lat * dlongcj_dlonwgs) /
+      (dlongcj_dlatwgs * dlatgcj_dlonwgs - dlatgcj_dlatwgs * dlongcj_dlonwgs);
+    var d_lonwgs = (l_lon - dlongcj_dlatwgs * d_latwgs) / dlongcj_dlonwgs;
+
+    if (Math.abs(d_latwgs) < 1.0e-9 && Math.abs(d_lonwgs) < 1.0e-9) break;
+    wgs84lon = wgs84lon + d_lonwgs;
+    wgs84lat = wgs84lat + d_latwgs;
+  }
+  return [wgs84lon, wgs84lat];
+}
+
+/////////////////////////////////////
+
+
+
+      /*奥维对象类型说明*/
+    
+    /*文件夹类型*/
+    var OMAP_OBJ_TYPE_GROUP = 30;
+    /*标签类型*/
+    var OMAP_OBJ_TYPE_SIGN = 7;
+    /*轨迹类型*/
+    var OMAP_OBJ_TYPE_TRACK = 8;
+    /*图形类型*/
+    var OMAP_OBJ_TYPE_SHAPE = 13;
+    /*导航线路*/
+    var OMAP_OBJ_TYPE_DIR = 11;
+
+    var flat = 0;
+    var flng = 0;
+    
+    /* 
+    * 插件代码的执行入口函数,插件都必须包含此函数，请不要修改函数名称
+    */
+    
+    function ov_change(mJson,strParam){
+        var bString = false;
+        /*pc端传值为Json字符串，Android/ios传值为Json对象*/
+        if(typeof(mJson) == 'string'){
+            mJson=JSON.parse(mJson);
+            bString = true;
+        }
+          var object = mJson;
+        var iType = object.Type;
+                switch(iType){
+            case OMAP_OBJ_TYPE_GROUP:
+                object.Name = "文件夹名称";
+                break;
+            case OMAP_OBJ_TYPE_SIGN:
+                object.Name = "标签名称";
+                object.Comment = "标签备注";
+                break;
+            case OMAP_OBJ_TYPE_TRACK:
+                object.Name = "轨迹名称";
+                object.Comment = "轨迹备注";
+                break;
+            case OMAP_OBJ_TYPE_DIR:
+                break;
+            case OMAP_OBJ_TYPE_SHAPE:
+                object.Name = "图形名称";
+                object.Comment = "图形备注";
+        }
+          mJson = ov_changeLatLng(object);
+        if(bString){
+            return JSON.stringify(mJson);
+        }else{
+            return mJson;
+        }
+          
+    }
+    
+    /*自定义报错内容*/
+    function showErr(bString){
+        var newJson = new Object();
+        newJson.iRet = -1;
+        newJson.strErr = "参数格式错误,请输入正确经纬度纠偏参数范围0.1-10。\n例：0.2,0.2";
+        if(bString){
+            return JSON.stringify(newJson);
+        }else{
+            var json = JSON.stringify(newJson);
+            return JSON.parse(json);
+        }
+    }
+    
+    /*自定义经纬度纠偏计算*/
+    function ov_changeLatLng(object){
+          var Detail = object.ObjectDetail;
+          var latlng;
+          switch(object.Type){
+        case OMAP_OBJ_TYPE_SIGN:
+        
+            // Detail.Lng = Detail.Lng- flng;
+            // Detail.Lat = Detail.Lat - flat;
+            var LngLat=Gcj2Wgs_AnalyticDiff(Detail.Lng,Detail.Lat)
+            [Detail.Lng,Detail.Lat]=
+            Detail.Lng=LngLat[0]
+            Detail.Lat=LngLat[1]
+            // Detail.Lng = Detail.Lng- flng;
+            // Detail.Lat = Detail.Lat - flat;
+            break;
+            
+        case OMAP_OBJ_TYPE_TRACK:
+        
+            latlng = Detail.Latlng;
+            var size_track = latlng.length;
+            for (var i = 0; i < size_track; i += 2) {
+            //   latlng[i] = latlng[i] - flat ;
+            //   latlng[i + 1] = latlng[i + 1] - flng;
+            var LngLat=Gcj2Wgs_AnalyticDiff(latlng[i+1],latlng[i])
+            latlng[i+1]=LngLat[0]
+            latlng[i]=LngLat[1]
+            }
+            // [tmp,Detail.latlng]=Gcj2Wgs_AnalyticDiff(tmp.Detail.Lng,latlng)
+            Detail.latlng = latlng;
+            break;
+        
+        case OMAP_OBJ_TYPE_SHAPE:
+        
+            latlng = Detail.Latlng;
+            var size_shape = latlng.length;
+            for (var i = 0; i < size_shape; i += 2) {
+              var LngLat=Gcj2Wgs_AnalyticDiff(latlng[i+1],latlng[i])
+            	latlng[i+1]=LngLat[0]
+            	latlng[i]=LngLat[1]
+            }
+            Detail.latlng = latlng;
+            break;
+            }
+        object.ObjectDetail.Gcj02 = 0; 
+          object.ObjectDetail = Detail;
+          return object;
+    }
+        
+</script>       
