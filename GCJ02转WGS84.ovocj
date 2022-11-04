@@ -367,8 +367,8 @@ function Gcj2Wgs_AnalyticDiff(gcj02lon, gcj02lat) {
     /*导航线路*/
     var OMAP_OBJ_TYPE_DIR = 11;
 
-    var flat = 0;
-    var flng = 0;
+    //var flat = 0;
+    //var flng = 0;
     
     /* 
     * 插件代码的执行入口函数,插件都必须包含此函数，请不要修改函数名称
@@ -467,8 +467,8 @@ function Gcj2Wgs_AnalyticDiff(gcj02lon, gcj02lat) {
             break;
             }
         object.ObjectDetail.Gcj02 = 0; 
-          object.ObjectDetail = Detail;
-          return object;
+        object.ObjectDetail = Detail;
+        return object;
     }
         
 </script>       
